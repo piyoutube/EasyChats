@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echat</title>
+<style>
+:root{color-scheme:dark;--bg:#232323;--side:#2b2d31;--deep:#1e1f22;--panel:#232428;--input:#383a40;--hover:#35373c;--sel:#404249;--ink:#dbdee1;--head:#f2f3f5;--sub:#949ba4;--line:#1f2023;--acc:#f03030;--acc-h:#d12424;--danger:#da373c;--ok:#23a55a;--err:#f23f42}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:"gg sans","Noto Sans JP","Hiragino Sans","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.375}
+button,input{font:inherit;color:inherit}
+input{background:var(--deep);border:0;border-radius:4px;padding:10px;width:100%}
+input:focus-visible,button:focus-visible{outline:2px solid #f03030;outline-offset:1px}
+button{cursor:pointer;border:0;border-radius:3px;padding:8px 16px;background:var(--acc);color:#fff;font-weight:500;transition:background .15s}
+button:hover{background:var(--acc-h)}
+button.ghost{background:transparent;color:var(--ink)}
+button.ghost:hover{background:transparent;text-decoration:underline}
+button.danger{background:var(--danger);color:#fff}
+button.danger:hover{background:#a12828}
+button.link{background:none;color:#ff6b6b;padding:0}
+button.link:hover{background:none;text-decoration:underline}
+button:disabled{opacity:.5;cursor:default}
+.hidden{display:none!important}
+*{scrollbar-width:thin;scrollbar-color:#1a1b1e transparent}
+
+/* 認証 */
+#auth{min-height:100%;display:grid;place-items:center;padding:20px;background:#232323}
+.card{background:var(--panel);border-radius:5px;padding:32px;width:min(440px,100%);box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.card h1{margin:0 0 6px;font-size:24px;color:var(--head);text-align:center;font-weight:600}
+.card p{margin:0 0 20px;color:var(--sub);text-align:center}
+.card label{display:block;font-size:12px;font-weight:700;color:var(--sub);margin:16px 0 8px}
+.card .wide{width:100%;margin-top:20px;padding:11px}
+.alt{margin-top:8px;font-size:14px;color:var(--sub)}
+.msg{min-height:20px;margin-top:8px;font-size:13px;color:var(--err)}
+
+/* アバター */
+.av{width:32px;height:32px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:600;font-size:14px;flex:none;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.av.sm{width:24px;height:24px;font-size:12px}
+.av.md{width:40px;height:40px;font-size:17px}
+.av.memo{background:var(--ok)}
+.av.memo svg{width:60%;height:60%}
+.av.lg{width:96px;height:96px;font-size:38px}
+
+/* アプリ */
+#app{height:100%;display:grid;grid-template-columns:240px 1fr}
+aside{background:var(--side);display:flex;flex-direction:column;min-height:0}
+.brand{height:48px;padding:0 16px;display:flex;align-items:center;font-weight:700;font-size:17px;color:var(--head);box-shadow:0 1px 0 rgba(0,0,0,.3);flex:none}
+.add{padding:10px 10px 0}
+.add form{display:flex;gap:6px}
+.add input{padding:7px 8px;font-size:14px}
+.add button{padding:6px 12px;font-size:14px;white-space:nowrap}
+.add .msg{min-height:0;margin:6px 2px 0;font-size:12px}
+.add .msg.ok{color:var(--ok)}
+.lbl{padding:18px 18px 4px;font-size:12px;font-weight:700;color:var(--sub)}
+#channels{list-style:none;margin:0;padding:0 8px}
+#friends{list-style:none;margin:0;padding:0 8px;overflow:auto;flex:1}
+#friends li{margin-top:2px}
+#channels li{margin-top:2px}
+#friends li button{width:100%;text-align:left;background:transparent;color:var(--sub);font-weight:500;padding:6px 8px;border-radius:4px;display:flex;align-items:center;gap:12px}
+#channels li button{width:100%;text-align:left;background:transparent;color:var(--sub);font-weight:500;padding:6px 8px;border-radius:4px;display:flex;align-items:center;gap:12px}
+#friends li button:hover{background:var(--hover);color:var(--ink)}
+#channels li button:hover{background:var(--hover);color:var(--ink)}
+#friends li button.on{background:var(--sel);color:var(--head)}
+#channels li button.on{background:var(--sel);color:var(--head)}
+.empty{color:var(--sub);padding:8px 10px;font-size:13px}
+.mebar{background:var(--panel);height:52px;padding:0 8px;display:flex;align-items:center;gap:8px;flex:none}
+.mebar b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;color:var(--head);font-weight:600}
+#meAv{cursor:pointer}
+.ib{width:32px;height:32px;padding:0;background:transparent;color:var(--sub);display:grid;place-items:center;border-radius:4px}
+.ib:hover{background:var(--hover);color:var(--ink)}
+.ib.del:hover{color:var(--err)}
+.ib svg{width:20px;height:20px}
+
+main{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--bg)}
+.head{height:48px;padding:0 16px;box-shadow:0 1px 0 rgba(0,0,0,.3);display:flex;align-items:center;gap:8px;font-weight:600;color:var(--head);flex:none}
+.head .back{display:none;padding:4px 8px}
+#log{flex:1;overflow:auto;padding:16px 0;display:flex;flex-direction:column}
+.none{margin:auto;color:var(--sub);text-align:center;padding:0 20px}
+.m{position:relative;display:grid;grid-template-columns:40px 1fr;column-gap:16px;padding:2px 16px;margin-top:17px}
+.m.cont{margin-top:0}
+.m:hover{background:#2e3035}
+.mdel{position:absolute;right:16px;top:-10px;display:none;width:28px;height:28px;padding:0;border-radius:4px;background:var(--panel);border:1px solid var(--line);color:var(--sub);align-items:center;justify-content:center}
+.mdel svg{width:15px;height:15px}
+.mdel:hover{color:var(--err);background:var(--panel)}
+.m:hover .mdel{display:flex}
+.m .av{margin-top:2px}
+.mh{display:flex;align-items:baseline;gap:8px}
+.mn{font-weight:500}
+.mt{font-size:12px;color:var(--sub)}
+.mx{white-space:pre-wrap;word-break:break-word}
+.ts{visibility:hidden;font-size:11px;color:var(--sub);text-align:right;line-height:22px}
+.m.cont:hover .ts{visibility:visible}
+#send{margin:0 16px 24px;background:var(--input);border-radius:8px;display:flex;align-items:center;padding-right:6px;flex:none}
+#send input{background:transparent;padding:11px 16px}
+.filechip{display:flex;align-items:center;gap:10px;background:var(--input);border-radius:8px;padding:10px 12px;margin-top:4px;max-width:320px}
+.filechip .fi{width:36px;height:36px;border-radius:6px;background:var(--acc);color:#fff;display:grid;place-items:center;flex:none}
+.filechip .fi svg{width:18px;height:18px}
+.filechip .fd{min-width:0;flex:1}
+.filechip .fn{display:block;font-size:14px;color:var(--head);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filechip .fs{display:block;font-size:12px;color:var(--sub)}
+.filechip a.fdl{flex:none;width:30px;height:30px;border-radius:6px;display:grid;place-items:center;color:var(--sub)}
+.filechip a.fdl:hover{background:var(--hover);color:var(--ink)}
+.filechip a.fdl svg{width:16px;height:16px}
+#upPreviewFile{display:flex;align-items:center;gap:10px;background:var(--input);border-radius:8px;padding:12px;margin:4px 0}
+#upPreviewFile .fi{width:40px;height:40px;border-radius:6px;background:var(--acc);color:#fff;display:grid;place-items:center;flex:none}
+#upPreviewFile .fi svg{width:20px;height:20px}
+#upPreviewFile .fn{font-size:14px;color:var(--head);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#upPreviewFile .fs{font-size:12px;color:var(--sub)}
+#send button[type="submit"]{padding:0;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none}
+#send button[type="submit"] svg{width:16px;height:16px;margin-left:2px}
+#send button.ib{padding:0;background:transparent;margin-left:6px}
+#send button.ib:hover{background:var(--hover)}
+.picw{position:relative;display:inline-block;margin-top:4px;line-height:0;max-width:100%}
+.picw .pic{margin-top:0}
+.picw.sp{overflow:hidden;border-radius:6px;cursor:pointer}
+.picw.sp .pic{filter:blur(28px);cursor:pointer}
+.spl{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.65);color:#fff;font-size:13px;font-weight:700;padding:5px 14px;border-radius:20px;line-height:1.4;white-space:nowrap;pointer-events:none}
+#upDlg img{display:block;max-width:100%;max-height:50vh;margin:0 auto 14px;border-radius:6px}
+.chk{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px}
+#confirmDlg{width:min(380px,92vw);text-align:center}
+#confirmDlg p{color:var(--head);font-size:15px;margin:4px 0 0}
+#confirmDlg .row{justify-content:center}
+#adminDlg{width:min(640px,94vw)}
+.alist{list-style:none;margin:0;padding:0;max-height:50vh;overflow:auto;border-top:1px solid var(--line)}
+.alist li{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--line)}
+.alist .an{flex:1;min-width:0}
+.alist .an b{display:block;color:var(--head)}
+.alist .an span{font-size:12px;color:var(--sub)}
+.alist button{padding:6px 12px;font-size:13px}
+.chk input{width:auto}
+.pic{display:block;margin-top:4px;max-width:min(320px,100%);max-height:320px;border-radius:6px;cursor:zoom-in;background:var(--input)}
+.pic:not([src]){width:160px;height:120px}
+#imgDlg{padding:0;background:transparent;width:auto;height:auto;max-width:94vw}
+#imgDlg[open]{display:flex}
+#imgDlg .ibox{position:relative;line-height:0;margin:auto}
+#imgDlg img{display:block;max-width:94vw;max-height:90vh;border-radius:6px;cursor:zoom-out}
+#imgDlg .idl{position:absolute;right:10px;top:10px;width:36px;height:36px;padding:0;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:center}
+#imgDlg .idl svg{width:18px;height:18px}
+#imgDlg .idl:hover{background:rgba(0,0,0,.8)}
+
+dialog{position:fixed;inset:0;margin:auto;border:0;border-radius:5px;background:var(--bg);color:var(--ink);padding:24px;width:min(420px,92vw);max-height:90vh}
+dialog::backdrop{background:rgba(0,0,0,.7)}
+dialog h2{margin:0 0 8px;font-size:20px;color:var(--head);font-weight:600}
+dialog p{margin:0 0 12px;color:var(--sub);font-size:14px}
+.row{display:flex;gap:8px;margin-top:18px;justify-content:flex-end}
+#iconDlg{text-align:center}
+#iconDlg .av{margin:12px auto}
+#iconDlg .row{flex-wrap:wrap;justify-content:center}
+.egg{position:fixed;left:50%;bottom:32px;transform:translateX(-50%);background:#111214;color:#fff;padding:10px 22px;border-radius:24px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:10}
+.rainbow{animation:hue 1s linear infinite;color:#ff4d6d!important}
+@keyframes hue{to{filter:hue-rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.rainbow{animation:none}}
+@media (max-width:700px){
+ #app{grid-template-columns:1fr}
+ #app.chatting aside{display:none}
+ #app:not(.chatting) main{display:none}
+ .head .back{display:block}
+}
+</style>
+</head>
+<body>
+
+<section id="auth">
+ <div class="card">
+  <h1>Echat</h1>
+  <p>ユーザー名とパスワードで始められます。</p>
+  <form id="authForm">
+   <label for="u">ユーザー名（20文字まで）</label>
+   <input id="u" autocomplete="username" required maxlength="20">
+   <label for="p">パスワード（4文字以上）</label>
+   <input id="p" type="password" autocomplete="current-password" required minlength="4">
+   <button type="submit" id="loginBtn" class="wide">ログイン</button>
+   <div class="msg" id="authMsg" role="alert"></div>
+   <div class="alt">アカウントが必要ですか？ <button type="button" class="link" id="regBtn">アカウントを作成</button></div>
+  </form>
+ </div>
+</section>
+
+<section id="app" class="hidden">
+ <aside>
+  <div class="brand">Echat</div>
+  <div class="add">
+   <form id="addForm">
+    <input id="friendName" placeholder="ユーザー名でフレンド追加" maxlength="20" aria-label="フレンドのユーザー名">
+    <button type="submit">追加</button>
+   </form>
+   <div class="msg" id="addMsg"></div>
+  </div>
+  <div class="lbl">チャンネル</div>
+  <ul id="channels"><li><button id="memoBtn"><span class="av memo" id="memoAv"></span><span>キープメモ</span></button></li></ul>
+  <div class="lbl">ダイレクトメッセージ</div>
+  <ul id="friends"></ul>
+  <div class="mebar">
+   <div class="av" id="meAv" role="button" tabindex="0" title="アイコンを変更"></div>
+   <b id="meName"></b>
+   <button class="ib" id="logout" title="ログアウト" aria-label="ログアウト"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
+   <button class="ib del" id="delBtn" title="アカウントを削除" aria-label="アカウントを削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+  </div>
+ </aside>
+ <main>
+  <div class="head"><button class="ghost back" id="back">戻る</button><span id="peerAv" class="hidden"></span><span id="peer">フレンドを選んでください</span></div>
+  <div id="log"><div class="none">左のリストからフレンドを選ぶと<br>チャットが始まります。</div></div>
+  <form id="send" class="hidden">
+   <button type="button" class="ib" id="attach" title="ファイルを送る" aria-label="ファイルを送る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg></button>
+   <input id="fileInput" type="file" class="hidden">
+   <input id="text" placeholder="メッセージを入力" autocomplete="off" maxlength="1000" aria-label="メッセージ">
+   <button type="submit" aria-label="送信"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l15 8-15 8V4z"/></svg></button>
+  </form>
+ </main>
+</section>
+
+<dialog id="upDlg">
+ <h2>ファイルを送信</h2>
+ <img id="upPrev" alt="送信する画像のプレビュー" class="hidden">
+ <div id="upPreviewFile" class="hidden">
+  <span class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></span>
+  <div style="min-width:0"><div class="fn" id="upFileName"></div><div class="fs" id="upFileSize"></div></div>
+ </div>
+ <label class="chk" id="upSpoilerRow"><input type="checkbox" id="upSpoiler"> ネタバレにする（ぼかして表示）</label>
+ <div class="msg" id="upMsg" role="alert"></div>
+ <div class="row">
+  <button class="ghost" id="upCancel" type="button">キャンセル</button>
+  <button id="upSend" type="button">送信</button>
+ </div>
+</dialog>
+
+<dialog id="imgDlg"><div class="ibox"><img id="bigImg" alt=""><a class="idl" id="imgDl" download="echat-image.jpg" title="ダウンロード" aria-label="ダウンロード"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg></a></div></dialog>
+
+<dialog id="confirmDlg">
+ <h2 id="confirmTitle">削除しますか？</h2>
+ <p id="confirmBody"></p>
+ <div class="row"><button class="ghost" id="confirmNo" type="button">キャンセル</button><button class="danger" id="confirmYes" type="button">削除する</button></div>
+</dialog>
+
+<dialog id="adminDlg">
+ <h2>管理者モード</h2>
+ <div id="adminSetup">
+  <p>初回のみ、管理者パスワードを設定します。</p>
+  <label>パスワード（6文字以上）<input id="aSetP1" type="password" autocomplete="new-password"></label>
+  <label style="display:block;margin-top:10px">確認のため再入力<input id="aSetP2" type="password" autocomplete="new-password"></label>
+  <div class="msg" id="aSetMsg" role="alert"></div>
+  <div class="row"><button class="ghost" id="aSetCancel" type="button">閉じる</button><button id="aSetOk" type="button">設定する</button></div>
+ </div>
+ <div id="adminLogin" class="hidden">
+  <p>管理者パスワードを入力してください。</p>
+  <input id="aLoginP" type="password" autocomplete="current-password">
+  <div class="msg" id="aLoginMsg" role="alert"></div>
+  <div class="row"><button class="ghost" id="aLoginCancel" type="button">閉じる</button><button id="aLoginOk" type="button">入る</button></div>
+ </div>
+ <div id="adminPanel" class="hidden">
+  <p id="aCount"></p>
+  <ul class="alist" id="aList"></ul>
+  <div class="row"><button class="ghost" id="aPanelClose" type="button">閉じる</button></div>
+ </div>
+</dialog>
+
+<dialog id="iconDlg">
+ <h2>アイコンを変更</h2>
+ <div class="av lg" id="iconPrev"></div>
+ <input id="iconFile" type="file" accept="image/*" class="hidden">
+ <div class="msg" id="iconMsg" role="alert"></div>
+ <div class="row">
+  <button type="button" id="iconPick">画像を選ぶ</button>
+  <button type="button" class="ghost" id="iconRemove">初期アイコンに戻す</button>
+  <button type="button" class="ghost" id="iconClose">閉じる</button>
+ </div>
+</dialog>
+
+<dialog id="delDlg">
+ <h2>アカウントを削除</h2>
+ <p style="color:var(--sub);margin:0 0 12px">アカウント、フレンド関係、チャット履歴がすべて消えます。元に戻せません。</p>
+ <input id="delPass" type="password" placeholder="パスワードを入力" autocomplete="current-password">
+ <div class="msg" id="delMsg"></div>
+ <div class="row">
+  <button class="ghost" id="delCancel" type="button">キャンセル</button>
+  <button class="danger" id="delOk" type="button">削除する</button>
+ </div>
+</dialog>
+
+<script>
+const DB = "https://easy-chat-server-77adf-default-rtdb.firebaseio.com";
+const $ = id => document.getElementById(id);
+const k = encodeURIComponent;
+const pair = (a, b) => [a, b].sort().join("__");
+let me = null, peer = null, timers = [], lastSig = "";
+const icons = {};
+const fileCache = {};
+function getFile(pid, id) {
+  const key = pid + "/" + id;
+  return fileCache[key] || (fileCache[key] = api("files/" + k(pid) + "/" + k(id)).catch(() => { delete fileCache[key]; return null; }));
+}
+function fmtSize(n) {
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+  return (n / 1048576).toFixed(1) + " MB";
+}
+const revealed = new Set();
+function imgEl(target, fid, stick, spoiler, msgId) {
+  const im = document.createElement("img");
+  im.className = "pic"; im.alt = "画像を読み込み中";
+  const wrap = document.createElement("div"), hide = spoiler && !revealed.has(msgId);
+  wrap.className = "picw" + (hide ? " sp" : "");
+  wrap.appendChild(im);
+  let ov = null;
+  if (hide) { ov = document.createElement("span"); ov.className = "spl"; ov.textContent = "ネタバレ：クリックで表示"; wrap.appendChild(ov); }
+  getFile(pair(me, target), fid).then(v => {
+    if (!v) { im.alt = "画像を読み込めませんでした"; return; }
+    im.onload = () => { if (stick) { const l = $("log"); l.scrollTop = l.scrollHeight; } };
+    im.alt = "送信された画像"; im.src = v;
+  });
+  wrap.onclick = () => {
+    if (wrap.classList.contains("sp")) { wrap.classList.remove("sp"); revealed.add(msgId); if (ov) ov.remove(); return; }
+    if (im.src) {
+      $("bigImg").src = im.src;
+      $("imgDl").href = im.src;
+      const ext = (im.src.match(/^data:image\/(\w+)/) || [,"jpg"])[1].replace("jpeg", "jpg");
+      $("imgDl").download = "echat-image." + ext;
+      $("imgDlg").showModal();
+    }
+  };
+  return wrap;
+}
+function fileChip(target, f) {
+  const chip = document.createElement("div"); chip.className = "filechip";
+  const icon = document.createElement("span"); icon.className = "fi";
+  icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>';
+  const d = document.createElement("div"); d.className = "fd";
+  const nm = document.createElement("span"); nm.className = "fn"; nm.textContent = f.name;
+  const sz = document.createElement("span"); sz.className = "fs"; sz.textContent = fmtSize(f.size || 0);
+  d.append(nm, sz);
+  const dl = document.createElement("a"); dl.className = "fdl"; dl.download = f.name; dl.title = "ダウンロード"; dl.setAttribute("aria-label", "ダウンロード");
+  dl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>';
+  getFile(pair(me, target), f.id).then(v => { if (v) dl.href = v; else dl.style.opacity = ".4"; });
+  chip.append(icon, d, dl);
+  return chip;
+}
+const MAX_FILE_BYTES = 8 * 1024 * 1024;
+function prepFile(file) {
+  return new Promise((res, rej) => {
+    if (file.type.startsWith("image/")) {
+      if (file.type === "image/gif" && file.size < 1000000) {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = () => rej(new Error("画像を読み込めませんでした。"));
+        r.readAsDataURL(file); return;
+      }
+      const img = new Image(), url = URL.createObjectURL(file);
+      img.onload = () => {
+        const sc = Math.min(1, 1000 / Math.max(img.width, img.height));
+        const w = Math.round(img.width * sc), h = Math.round(img.height * sc);
+        const c = document.createElement("canvas"); c.width = w; c.height = h;
+        const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        res(c.toDataURL("image/jpeg", 0.8));
+      };
+      img.onerror = () => rej(new Error("画像を読み込めませんでした。"));
+      img.src = url;
+      return;
+    }
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(new Error("ファイルを読み込めませんでした。"));
+    r.readAsDataURL(file);
+  });
+}
+let pending = null;
+async function stageFile(file) {
+  if (!file || !peer) return;
+  if (file.size > MAX_FILE_BYTES) { alert("ファイルが大きすぎます（上限 8MB）。"); return; }
+  try {
+    const v = await prepFile(file);
+    pending = {v, target: peer, name: file.name, type: file.type || "application/octet-stream", size: file.size};
+    const isImg = file.type.startsWith("image/");
+    $("upPrev").classList.toggle("hidden", !isImg);
+    $("upPreviewFile").classList.toggle("hidden", isImg);
+    $("upSpoilerRow").classList.toggle("hidden", !isImg);
+    if (isImg) { $("upPrev").src = v; }
+    else { $("upFileName").textContent = file.name; $("upFileSize").textContent = fmtSize(file.size); }
+    $("upSpoiler").checked = false; $("upMsg").textContent = "";
+    $("upDlg").showModal();
+  } catch (e) { alert(e.message); }
+}
+async function sendFile() {
+  if (!pending) return;
+  const {v, target, name, type, size} = pending, pid = pair(me, target), btn = $("upSend");
+  btn.disabled = true; $("upMsg").textContent = "";
+  try {
+    const r = await api("files/" + k(pid), "POST", v);
+    const msg = {from: me, text: "", file: {id: r.name, name, type, size}, ts: Date.now()};
+    if (type.startsWith("image/") && $("upSpoiler").checked) msg.spoiler = true;
+    await api("chats/" + k(pid), "POST", msg);
+    fileCache[pid + "/" + r.name] = Promise.resolve(v);
+    pending = null;
+    $("upDlg").close();
+    if (peer === target) { await loadMessages(); $("log").scrollTop = $("log").scrollHeight; }
+  } catch (e) { $("upMsg").textContent = e.message; }
+  btn.disabled = false;
+}
+const NOTE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18H5z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>';
+function setPeerAv(n) {
+  const el = $("peerAv");
+  if (n === me) { el.className = "av sm memo"; el.innerHTML = NOTE_SVG; }
+  else setAv(el, n, "sm");
+}
+function markMemo() { $("memoBtn").className = peer && peer === me ? "on" : ""; }
+function nameColor(n) { let h = 0; for (const c of n) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h} 65% 72%)`; }
+function fmtTime(ts) {
+  const d = new Date(ts), t = d.toLocaleTimeString("ja-JP", {hour: "2-digit", minute: "2-digit"});
+  return d.toDateString() === new Date().toDateString() ? "今日 " + t : d.toLocaleDateString("ja-JP") + " " + t;
+}
+
+async function getIcon(n, force) {
+  const c = icons[n];
+  if (c && !force && Date.now() - c.t < 60000) return c.v;
+  try { icons[n] = {v: (await api("icons/" + k(n))) || "", t: Date.now()}; }
+  catch (e) { if (!icons[n]) icons[n] = {v: "", t: Date.now()}; }
+  return icons[n].v;
+}
+function setAv(el, n, cls) {
+  el.className = "av" + (cls ? " " + cls : "");
+  el.textContent = "";
+  const v = icons[n] && icons[n].v;
+  if (v) { const i = document.createElement("img"); i.src = v; i.alt = ""; el.appendChild(i); }
+  else el.textContent = n[0];
+}
+function resizeImage(file) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = 128, c = document.createElement("canvas"), m = Math.min(img.width, img.height);
+      c.width = c.height = s;
+      const g = c.getContext("2d");
+      g.fillStyle = "#fff"; g.fillRect(0, 0, s, s);
+      g.drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, s, s);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL("image/jpeg", 0.8));
+    };
+    img.onerror = () => rej(new Error("画像を読み込めませんでした。"));
+    img.src = url;
+  });
+}
+function refreshMyIcon() {
+  setAv($("meAv"), me);
+  setAv($("iconPrev"), me, "lg");
+}
+async function saveIcon(file) {
+  const m = $("iconMsg"); m.textContent = "";
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { m.textContent = "画像ファイルを選んでください。"; return; }
+  try {
+    const v = await resizeImage(file);
+    await api("icons/" + k(me), "PUT", v);
+    icons[me] = {v, t: Date.now()};
+    refreshMyIcon();
+  } catch (e) { m.textContent = e.message; }
+}
+async function removeIcon() {
+  try {
+    await api("icons/" + k(me), "DELETE");
+    icons[me] = {v: "", t: Date.now()};
+    refreshMyIcon();
+  } catch (e) { $("iconMsg").textContent = e.message; }
+}
+
+async function api(path, method = "GET", body) {
+  const r = await fetch(`${DB}/${path}.json`, {
+    method,
+    headers: body !== undefined ? {"Content-Type": "application/json"} : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined
+  });
+  if (!r.ok) throw new Error("通信に失敗しました (" + r.status + ")。データベースのルールを確認してください。");
+  return r.json();
+}
+
+async function hash(s) {
+  try {
+    if (window.crypto && crypto.subtle) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("easychat:" + s));
+      return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+  } catch (e) {}
+  let h = 5381; const t = "easychat:" + s;
+  for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return "x" + (h >>> 0).toString(16);
+}
+
+function validName(n) {
+  return /^[^.$#\[\]\/\s]{1,20}$/.test(n);
+}
+
+/* ---------- 認証 ---------- */
+function authMsg(t) { $("authMsg").textContent = t; }
+
+async function register() {
+  const u = $("u").value.trim(), p = $("p").value;
+  if (!validName(u)) return authMsg("ユーザー名に空白や . $ # [ ] / は使えません。");
+  if (p.length < 4) return authMsg("パスワードは4文字以上にしてください。");
+  try {
+    if (await api("users/" + k(u))) return authMsg("そのユーザー名はすでに使われています。");
+    await api("users/" + k(u), "PUT", {pass: await hash(p), created: Date.now()});
+    enter(u);
+  } catch (e) { authMsg(e.message); }
+}
+
+async function login(e) {
+  e.preventDefault();
+  const u = $("u").value.trim(), p = $("p").value;
+  try {
+    const user = await api("users/" + k(u));
+    if (!user || user.pass !== await hash(p)) return authMsg("ユーザー名かパスワードが違います。");
+    enter(u);
+  } catch (e) { authMsg(e.message); }
+}
+
+function enter(u) {
+  me = u; peer = null; lastSig = "";
+  try { localStorage.setItem("easychat-user", u); } catch (e) {}
+  authMsg(""); $("p").value = "";
+  $("auth").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  $("meName").textContent = u;
+  setAv($("meAv"), u);
+  getIcon(u, true).then(() => { if (me === u) refreshMyIcon(); });
+  resetChat();
+  loadFriends();
+  timers = [setInterval(loadFriends, 5000), setInterval(loadMessages, 2000)];
+}
+
+function leave() {
+  timers.forEach(clearInterval); timers = [];
+  try { localStorage.removeItem("easychat-user"); } catch (e) {}
+  me = null; peer = null;
+  $("app").classList.add("hidden");
+  $("auth").classList.remove("hidden");
+}
+
+/* ---------- フレンド ---------- */
+async function loadFriends() {
+  if (!me) return;
+  try {
+    const f = await api("friends/" + k(me));
+    const names = Object.keys(f || {}).sort();
+    await Promise.all(names.map(n => getIcon(n)));
+    if (!me) return;
+    if (peer) setPeerAv(peer);
+    markMemo();
+    const ul = $("friends");
+    ul.innerHTML = "";
+    if (!names.length) {
+      const d = document.createElement("div");
+      d.className = "empty";
+      d.textContent = "まだフレンドがいません。上の欄にユーザー名を入れて追加しましょう。";
+      ul.appendChild(d);
+      return;
+    }
+    names.forEach(n => {
+      const li = document.createElement("li"), b = document.createElement("button");
+      b.className = n === peer ? "on" : "";
+      const av = document.createElement("span"); setAv(av, n);
+      const t = document.createElement("span"); t.textContent = n;
+      b.append(av, t);
+      b.onclick = () => openChat(n);
+      li.appendChild(b); ul.appendChild(li);
+    });
+  } catch (e) {}
+}
+
+async function addFriend(e) {
+  e.preventDefault();
+  const n = $("friendName").value.trim(), m = $("addMsg");
+  m.className = "msg";
+  if (!n) return;
+  if (n === me) { m.textContent = "自分は追加できません。"; return; }
+  if (!validName(n)) { m.textContent = "ユーザー名が正しくありません。"; return; }
+  try {
+    if (!(await api("users/" + k(n)))) { m.textContent = "そのユーザーは見つかりません。"; return; }
+    await api("friends/" + k(me) + "/" + k(n), "PUT", true);
+    await api("friends/" + k(n) + "/" + k(me), "PUT", true);
+    $("friendName").value = "";
+    m.className = "msg ok"; m.textContent = n + " をフレンドに追加しました。";
+    loadFriends();
+  } catch (err) { m.textContent = err.message; }
+}
+
+/* ---------- チャット ---------- */
+function resetChat() {
+  $("peer").textContent = "フレンドを選んでください";
+  $("peerAv").className = "hidden"; $("peerAv").textContent = "";
+  markMemo();
+  $("log").innerHTML = '<div class="none">左のリストからフレンドを選ぶと<br>チャットが始まります。</div>';
+  $("send").classList.add("hidden");
+  $("app").classList.remove("chatting");
+}
+
+function openChat(n) {
+  peer = n; lastSig = "";
+  const memo = n === me;
+  $("peer").textContent = memo ? "キープメモ" : n;
+  $("text").placeholder = memo ? "メモを入力" : "@" + n + " にメッセージを送信";
+  setPeerAv(n);
+  markMemo();
+  $("send").classList.remove("hidden");
+  $("app").classList.add("chatting");
+  $("log").innerHTML = "";
+  loadFriends();
+  loadMessages();
+  $("text").focus();
+}
+
+async function loadMessages() {
+  if (!me || !peer) return;
+  const target = peer;
+  try {
+    const data = await api("chats/" + k(pair(me, target)));
+    await getIcon(target);
+    if (target !== peer) return;
+    setPeerAv(target);
+    const msgs = Object.entries(data || {}).map(([id, v]) => ({id, ...v})).sort((a, b) => a.ts - b.ts);
+    const sig = msgs.length + ":" + (msgs.length ? msgs[msgs.length - 1].id : "") + ":" + ((icons[target] && icons[target].v) || "").length + ":" + ((icons[me] && icons[me].v) || "").length;
+    if (sig === lastSig) return;
+    lastSig = sig;
+    const log = $("log");
+    const stick = log.scrollHeight - log.scrollTop - log.clientHeight < 80 || !log.children.length;
+    log.innerHTML = "";
+    if (!msgs.length) {
+      const d = document.createElement("div");
+      d.className = "none"; d.textContent = target === me ? "自分用のメモ置き場です。思いついたことを書き留めましょう。" : "最初のメッセージを送ってみましょう。";
+      log.appendChild(d);
+    }
+    let prev = null;
+    msgs.forEach(m => {
+      const cont = prev && prev.from === m.from && m.ts - prev.ts < 300000 && new Date(prev.ts).toDateString() === new Date(m.ts).toDateString();
+      prev = m;
+      const row = document.createElement("div");
+      row.className = "m" + (cont ? " cont" : "");
+      const x = document.createElement("div"); x.className = "mx"; x.textContent = m.text;
+      if (m.file) x.appendChild(m.file.type && m.file.type.startsWith("image/") ? imgEl(target, m.file.id, stick, m.spoiler, m.id) : fileChip(target, m.file));
+      if (cont) {
+        const ts = document.createElement("span"); ts.className = "ts";
+        ts.textContent = new Date(m.ts).toLocaleTimeString("ja-JP", {hour: "2-digit", minute: "2-digit"});
+        row.append(ts, x);
+      } else {
+        const a = document.createElement("span"); setAv(a, m.from, "md");
+        const c = document.createElement("div"), h = document.createElement("div");
+        h.className = "mh";
+        const nm = document.createElement("span"); nm.className = "mn"; nm.textContent = m.from; nm.style.color = nameColor(m.from);
+        const t = document.createElement("span"); t.className = "mt"; t.textContent = fmtTime(m.ts);
+        h.append(nm, t); c.append(h, x); row.append(a, c);
+      }
+      if (m.from === me) {
+        const del = document.createElement("button");
+        del.className = "mdel"; del.type = "button"; del.title = "メッセージを削除"; del.setAttribute("aria-label", "メッセージを削除");
+        del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+        del.onclick = () => deleteMessage(target, m);
+        row.appendChild(del);
+      }
+      log.appendChild(row);
+    });
+    if (stick) log.scrollTop = log.scrollHeight;
+  } catch (e) {}
+}
+
+async function deleteMessage(target, m) {
+  if (!(await askConfirm("元に戻せません。", "メッセージを削除しますか？"))) return;
+  try {
+    await api("chats/" + k(pair(me, target)) + "/" + k(m.id), "DELETE");
+    if (m.file) await api("files/" + k(pair(me, target)) + "/" + k(m.file.id), "DELETE").catch(() => {});
+    lastSig = "";
+    await loadMessages();
+  } catch (e) { alert(e.message); }
+}
+
+async function sendMsg(e) {
+  e.preventDefault();
+  const t = $("text").value.trim();
+  if (!t || !peer) return;
+  $("text").value = "";
+  try {
+    await api("chats/" + k(pair(me, peer)), "POST", {from: me, text: t, ts: Date.now()});
+    await loadMessages();
+    $("log").scrollTop = $("log").scrollHeight;
+  } catch (err) { $("text").value = t; alert(err.message); }
+}
+
+/* ---------- アカウント削除 ---------- */
+async function deleteAccount() {
+  const m = $("delMsg");
+  try {
+    const user = await api("users/" + k(me));
+    if (!user || user.pass !== await hash($("delPass").value)) { m.textContent = "パスワードが違います。"; return; }
+    $("delOk").disabled = true; m.textContent = "削除しています…";
+    const f = await api("friends/" + k(me));
+    for (const n of Object.keys(f || {})) {
+      await api("friends/" + k(n) + "/" + k(me), "DELETE");
+      await api("chats/" + k(pair(me, n)), "DELETE");
+      await api("files/" + k(pair(me, n)), "DELETE");
+    }
+    await api("chats/" + k(pair(me, me)), "DELETE");
+    await api("files/" + k(pair(me, me)), "DELETE");
+    await api("friends/" + k(me), "DELETE");
+    await api("icons/" + k(me), "DELETE");
+    await api("users/" + k(me), "DELETE");
+    $("delDlg").close();
+    leave();
+  } catch (e) { m.textContent = e.message; }
+  $("delOk").disabled = false;
+}
+
+/* ---------- 独自の確認ダイアログ ---------- */
+function askConfirm(body, title, okLabel) {
+  return new Promise(res => {
+    $("confirmTitle").textContent = title || "削除しますか？";
+    $("confirmBody").textContent = body;
+    $("confirmYes").textContent = okLabel || "削除する";
+    const dlg = $("confirmDlg");
+    const cleanup = v => { dlg.onclose = null; yes.onclick = null; no.onclick = null; dlg.close(); res(v); };
+    const yes = $("confirmYes"), no = $("confirmNo");
+    yes.onclick = () => cleanup(true);
+    no.onclick = () => cleanup(false);
+    dlg.onclose = () => cleanup(false);
+    dlg.showModal();
+  });
+}
+
+/* ---------- 管理者モード（アカウント管理のみ） ---------- */
+function showAdminSection(id) {
+  ["adminSetup", "adminLogin", "adminPanel"].forEach(s => $(s).classList.toggle("hidden", s !== id));
+}
+async function openAdminGate() {
+  $("aSetP1").value = ""; $("aSetP2").value = ""; $("aSetMsg").textContent = "";
+  $("aLoginP").value = ""; $("aLoginMsg").textContent = "";
+  $("adminDlg").showModal();
+  try {
+    const p = await api("admin/pass");
+    showAdminSection(p ? "adminLogin" : "adminSetup");
+  } catch (e) { showAdminSection("adminSetup"); }
+}
+async function adminSetup() {
+  const p1 = $("aSetP1").value, p2 = $("aSetP2").value, m = $("aSetMsg");
+  if (p1.length < 6) { m.textContent = "パスワードは6文字以上にしてください。"; return; }
+  if (p1 !== p2) { m.textContent = "確認用パスワードが一致しません。"; return; }
+  try {
+    await api("admin/pass", "PUT", await hash("admin:" + p1));
+    await openAdminPanel();
+  } catch (e) { m.textContent = e.message; }
+}
+async function adminLogin() {
+  const m = $("aLoginMsg");
+  try {
+    const stored = await api("admin/pass");
+    if (stored !== await hash("admin:" + $("aLoginP").value)) { m.textContent = "パスワードが違います。"; return; }
+    await openAdminPanel();
+  } catch (e) { m.textContent = e.message; }
+}
+async function openAdminPanel() {
+  showAdminSection("adminPanel");
+  $("aCount").textContent = "読み込み中…";
+  const ul = $("aList"); ul.innerHTML = "";
+  try {
+    const users = await api("users");
+    const names = Object.keys(users || {}).sort();
+    $("aCount").textContent = "登録アカウント数: " + names.length + "件";
+    if (!names.length) { ul.innerHTML = '<li class="an"><span>アカウントはありません。</span></li>'; return; }
+    const friendCounts = {};
+    await Promise.all(names.map(async n => {
+      const f = await api("friends/" + k(n)).catch(() => null);
+      friendCounts[n] = Object.keys(f || {}).length;
+    }));
+    names.forEach(n => {
+      const li = document.createElement("li");
+      const info = document.createElement("div"); info.className = "an";
+      const b = document.createElement("b"); b.textContent = n;
+      const sp = document.createElement("span");
+      const created = users[n].created ? new Date(users[n].created).toLocaleDateString("ja-JP") : "不明";
+      sp.textContent = "作成日: " + created + " ／ フレンド数: " + friendCounts[n];
+      info.append(b, sp);
+      const del = document.createElement("button"); del.className = "danger"; del.textContent = "削除";
+      del.onclick = () => adminDeleteUser(n, li, del);
+      li.append(info, del);
+      ul.appendChild(li);
+    });
+  } catch (e) { $("aCount").textContent = e.message; }
+}
+async function adminDeleteUser(name, li, btn) {
+  if (!(await askConfirm(name + " のアカウントと、関連するすべてのデータが削除されます。元に戻せません。", "アカウントを削除しますか？"))) return;
+  btn.disabled = true; btn.textContent = "削除中…";
+  try {
+    const f = await api("friends/" + k(name));
+    for (const n of Object.keys(f || {})) {
+      await api("friends/" + k(n) + "/" + k(name), "DELETE");
+      await api("chats/" + k(pair(name, n)), "DELETE");
+      await api("files/" + k(pair(name, n)), "DELETE");
+    }
+    await api("chats/" + k(pair(name, name)), "DELETE");
+    await api("files/" + k(pair(name, name)), "DELETE");
+    await api("friends/" + k(name), "DELETE");
+    await api("icons/" + k(name), "DELETE");
+    await api("users/" + k(name), "DELETE");
+    li.remove();
+    if (name === me) leave();
+  } catch (e) { alert(e.message); btn.disabled = false; btn.textContent = "削除"; }
+}
+$("aSetOk").onclick = adminSetup;
+$("aSetCancel").onclick = () => $("adminDlg").close();
+$("aLoginOk").onclick = adminLogin;
+$("aLoginCancel").onclick = () => $("adminDlg").close();
+$("aPanelClose").onclick = () => $("adminDlg").close();
+
+/* ---------- イベント ---------- */
+$("authForm").addEventListener("submit", login);
+$("regBtn").onclick = register;
+$("logout").onclick = leave;
+$("addForm").addEventListener("submit", addFriend);
+$("send").addEventListener("submit", sendMsg);
+$("back").onclick = () => { peer = null; resetChat(); loadFriends(); };
+const openIcon = () => { $("iconMsg").textContent = ""; setAv($("iconPrev"), me, "lg"); $("iconDlg").showModal(); };
+$("meAv").onclick = openIcon;
+$("meAv").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openIcon(); } };
+$("iconPick").onclick = () => $("iconFile").click();
+$("iconFile").onchange = async e => { await saveIcon(e.target.files[0]); e.target.value = ""; };
+$("iconRemove").onclick = removeIcon;
+$("iconClose").onclick = () => $("iconDlg").close();
+$("attach").onclick = () => $("fileInput").click();
+$("fileInput").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; await stageFile(f); };
+$("text").addEventListener("paste", e => {
+  const it = [...(e.clipboardData ? e.clipboardData.items : [])].find(i => i.kind === "file");
+  if (it) { e.preventDefault(); stageFile(it.getAsFile()); }
+});
+const mainEl = document.querySelector("main");
+mainEl.addEventListener("dragover", e => e.preventDefault());
+mainEl.addEventListener("drop", e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) stageFile(f); });
+$("upCancel").onclick = () => { pending = null; $("upDlg").close(); };
+$("upSend").onclick = sendFile;
+$("imgDlg").onclick = e => { if (e.target.id !== "imgDl") $("imgDlg").close(); };
+/* コナミコマンド（ログイン画面のみ）: ↑↑↓↓←→←→ B A */
+const KONAMI = "U,U,D,D,L,R,L,R,B,A";
+let kbuf = [];
+function konamiKey(t) {
+  if ($("auth").classList.contains("hidden")) return;
+  kbuf.push(t); if (kbuf.length > 10) kbuf.shift();
+  if (kbuf.join() === KONAMI) { kbuf = []; konami(); }
+}
+function konami() {
+  const h = document.querySelector("#auth h1"), t = document.createElement("div");
+  t.className = "egg"; t.setAttribute("role", "status"); t.textContent = "コナミコマンド成功！ ライフ+30";
+  $("auth").appendChild(t); h.classList.add("rainbow");
+  setTimeout(() => { t.remove(); h.classList.remove("rainbow"); }, 4000);
+  openAdminGate();
+}
+const KEYMAP = {ArrowUp: "U", ArrowDown: "D", ArrowLeft: "L", ArrowRight: "R", KeyX: "B", KeyZ: "A"};
+document.addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("input,textarea")) return;
+  if (KEYMAP[e.code]) konamiKey(KEYMAP[e.code]);
+});
+const PADMAP = {12: "U", 13: "D", 14: "L", 15: "R", 1: "B", 0: "A"};
+const padPrev = {}; let padRun = false;
+function padLoop() {
+  const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+  pads.forEach(g => {
+    const prev = padPrev[g.index] || (padPrev[g.index] = {});
+    Object.keys(PADMAP).forEach(i => {
+      const on = !!(g.buttons[i] && g.buttons[i].pressed);
+      if (on && !prev[i]) konamiKey(PADMAP[i]);
+      prev[i] = on;
+    });
+  });
+  if (pads.length) requestAnimationFrame(padLoop); else padRun = false;
+}
+window.addEventListener("gamepadconnected", () => { if (!padRun) { padRun = true; requestAnimationFrame(padLoop); } });
+$("memoAv").innerHTML = NOTE_SVG;
+$("memoBtn").onclick = () => openChat(me);
+$("delBtn").onclick = () => { $("delPass").value = ""; $("delMsg").textContent = ""; $("delDlg").showModal(); };
+$("delCancel").onclick = () => $("delDlg").close();
+$("delOk").onclick = deleteAccount;
+
+try {
+  const saved = localStorage.getItem("easychat-user");
+  if (saved) api("users/" + k(saved)).then(u => { if (u) enter(saved); }).catch(() => {});
+} catch (e) {}
+</script>
+</body>
+</html>
