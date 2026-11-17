@@ -336,7 +336,7 @@ function fileChip(target, f) {
   chip.append(icon, d, dl);
   return chip;
 }
-const MAX_FILE_BYTES = 8 * 1024 * 1024;
+const MAX_FILE_BYTES = 100 * 1024 * 1024;
 function prepFile(file) {
   return new Promise((res, rej) => {
     if (file.type.startsWith("image/")) {
@@ -368,7 +368,7 @@ function prepFile(file) {
 let pending = null;
 async function stageFile(file) {
   if (!file || !peer) return;
-  if (file.size > MAX_FILE_BYTES) { alert("ファイルが大きすぎます（上限 8MB）。"); return; }
+  if (file.size > MAX_FILE_BYTES) { alert("ファイルが大きすぎます（上限 100MB）。"); return; }
   try {
     const v = await prepFile(file);
     pending = {v, target: peer, name: file.name, type: file.type || "application/octet-stream", size: file.size};
